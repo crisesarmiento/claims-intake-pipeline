@@ -1,7 +1,8 @@
 from aws_cdk import (
     # Duration,
     Stack,
-    # aws_sqs as sqs,
+    aws_sqs as sqs,
+    Duration,
     aws_s3 as s3,
     aws_dynamodb as dynamodb,
     RemovalPolicy,
@@ -24,3 +25,10 @@ class ClaimsInstakePipelineStack(Stack):
 
         claims_table.add_global_secondary_index(index_name="StatusIndex", partition_key=dynamodb.Attribute(name="status", type=dynamodb.AttributeType.STRING), sort_key=dynamodb.Attribute(name="created_at", type=dynamodb.AttributeType.NUMBER))
         claims_table.add_global_secondary_index(index_name="ProviderIndex", partition_key=dynamodb.Attribute(name="provider_id", type=dynamodb.AttributeType.STRING), sort_key=dynamodb.Attribute(name="created_at", type=dynamodb.AttributeType.NUMBER))
+        
+        dlq = sqs.Queue(self, "ClaimsDeadLetterQueue", queue_name="ClaimsDeadLetterQueue", removal_policy=RemovalPolicy.DESTROY)
+
+        claims_queue = sqs.Queue(self,"ClaimsQueue", queue_name="ClaimsQueue", visibility_timeout=Duration.seconds(300), dead_letter_queue=sqs.DeadLetterQueue(queue=dlq, max_receive_count=3),
+            removal_policy=RemovalPolicy.DESTROY)
+
+        
