@@ -20,7 +20,7 @@ class ClaimsInstakePipelineStack(Stack):
             s3.Bucket(self, "ClaimsInstakePipelineBucket", removal_policy=RemovalPolicy.DESTROY)
 
         
-        claims_table = dynamodb.Table(self, "ClaimsInstakePipelineTable", partition_key=dynamodb.Attribute(name="claim_id", type=dynamodb.AttributeType.STRING), removal_policy=RemovalPolicy.DESTROY)
+        claims_table = dynamodb.Table(self,"ClaimsTable", table_name="ClaimsTable", partition_key=dynamodb.Attribute(name="claim_id", type=dynamodb.AttributeType.STRING), billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST, removal_policy=RemovalPolicy.DESTROY)
 
-        claims_table.add_global_secondary_index(index_name="status_index", partition_key=dynamodb.Attribute(name="status", type=dynamodb.AttributeType.STRING), sort_key=dynamodb.Attribute(name="created_at", type=dynamodb.AttributeType.NUMBER))
-        claims_table.add_global_secondary_index(index_name="provider_id_index", partition_key=dynamodb.Attribute(name="provider_id", type=dynamodb.AttributeType.STRING), sort_key=dynamodb.Attribute(name="created_at", type=dynamodb.AttributeType.NUMBER))
+        claims_table.add_global_secondary_index(index_name="StatusIndex", partition_key=dynamodb.Attribute(name="status", type=dynamodb.AttributeType.STRING), sort_key=dynamodb.Attribute(name="created_at", type=dynamodb.AttributeType.NUMBER))
+        claims_table.add_global_secondary_index(index_name="ProviderIndex", partition_key=dynamodb.Attribute(name="provider_id", type=dynamodb.AttributeType.STRING), sort_key=dynamodb.Attribute(name="created_at", type=dynamodb.AttributeType.NUMBER))
