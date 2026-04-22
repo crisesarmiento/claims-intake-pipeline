@@ -7,6 +7,8 @@ from aws_cdk import (
     RemovalPolicy,
     aws_lambda as lambda_,
     aws_apigateway as apigateway,
+    aws_stepfunctions as sfn,
+    aws_stepfunctions_tasks as tasks,
 )
 from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from constructs import Construct
@@ -43,6 +45,33 @@ class ClaimsInstakePipelineStack(Stack):
         processor_fn = lambda_.Function(self, "ProcessorFunction", function_name="claims-intake-pipeline-processor-function", runtime=lambda_.Runtime.PYTHON_3_12, handler="handler.handler", code=lambda_.Code.from_asset("lambdas/processor"))
 
         processor_fn.add_event_source(SqsEventSource(claims_queue, batch_size=10))
+
+        validate_fn = lambda_.Function(self, "ValidationFunction", runtime=lambda_.Runtime.PYTHON_3_12, function_name="claims-intake-pipeline-validation-function", handler="handler.handler", code=lambda_.Code.from_asset("lambdas/validate"))
+
+        enrich_fn = lambda_.Function(self, "EnrichFunction", runtime=lambda_.Runtime.PYTHON_3_12, function_name="claims-intake-pipeline-enrich-function", handler="handler.handler", code=lambda_.Code.from_asset("lambdas/enrich"))
+
+        store_fn = lambda_.Function(self, "StoreFunction", runtime=lambda_.Runtime.PYTHON_3_12, function_name="claims-intake-pipeline-store-function", handler="handler.handler", code=lambda_.Code.from_asset("lambdas/store"), environment={
+            "TABLE_NAME": claims_table.table_name
+        })
+
+        validate_task = tasks.LambdaInvoke(self, "ValidateClaim", lambda_function=validate_fn, payload_response_only=True)
+        enrich_task = tasks.LambdaInvoke(self, "EnrichClaim", lambda_function=enrich_fn, payload_response_only=True)
+        store_task = tasks.LambdaInvoke(self, "StoreClaim", lambda_function=store_fn, payload_response_only=True)
+
+
+        validate_task.add_retry(
+            errors=["Lambda.ServiceException"],
+            max_attempts=3,
+            backoff_rate=2,
+            interval=Duration.seconds(2)
+        )
+        
+
+        fail_state = sfn.Pass(self, "FailState", parameters={"status": "FAILED"})
+        validate_task.add_catch(fail_state, result_path="$.error")
+
+        chain = sfn.Chain.start(validate_task).next(enrich_task).next(store_task)
+        state_machine = sfn.StateMachine(self, "ClaimsStateMachine", state_machine_name="ClaimsStateMachine", definition=chain, state_machine_type=sfn.StateMachineType.EXPRESS)
 
         # 4. API Gateway (API for claims)
         api = apigateway.RestApi(self, "ClaimsApi")
