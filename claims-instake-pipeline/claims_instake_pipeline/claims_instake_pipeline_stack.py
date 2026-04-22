@@ -1,5 +1,4 @@
 from aws_cdk import (
-    # Duration,
     Stack,
     aws_sqs as sqs,
     Duration,
@@ -9,6 +8,7 @@ from aws_cdk import (
     aws_lambda as lambda_,
     aws_apigateway as apigateway,
 )
+from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from constructs import Construct
 
 class ClaimsInstakePipelineStack(Stack):
@@ -39,6 +39,10 @@ class ClaimsInstakePipelineStack(Stack):
         ingest_fn = lambda_.Function(self, "IngestFunction", function_name="claims-intake-pipeline-ingest-function", runtime=lambda_.Runtime.PYTHON_3_12, handler="handler.handler", code=lambda_.Code.from_asset("lambdas/ingest"), environment={
             "CLAIMS_QUEUE_URL": claims_queue.queue_url
         })
+
+        processor_fn = lambda_.Function(self, "ProcessorFunction", function_name="claims-intake-pipeline-processor-function", runtime=lambda_.Runtime.PYTHON_3_12, handler="handler.handler", code=lambda_.Code.from_asset("lambdas/processor"))
+
+        processor_fn.add_event_source(SqsEventSource(claims_queue, batch_size=10))
 
         # 4. API Gateway (API for claims)
         api = apigateway.RestApi(self, "ClaimsApi")
