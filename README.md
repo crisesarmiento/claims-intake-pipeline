@@ -31,27 +31,28 @@ POST /claims  (API Gateway)
 - Python 3.12
 - AWS CDK v2 (IaC)
 - LocalStack (local AWS emulation)
-- Pandas via Lambda container image
-- pytest + moto (unit), LocalStack (integration)
+- Pandas via Lambda zip packaging
+- pytest + unittest.mock (unit), LocalStack (integration)
 - GitHub Actions CI
 
 ## Setup
 
 ```bash
-# Install dependencies
-make install
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate
 
-# Start LocalStack
+# Install dependencies
+cd claims-instake-pipeline
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Start LocalStack (in a separate terminal)
 localstack start
 
-# Deploy stack to LocalStack
+# Bootstrap and deploy stack to LocalStack
+cdklocal bootstrap
 make deploy
-
-# Run unit tests
-make test-unit
-
-# Run integration tests (requires LocalStack running)
-make test-integration
 ```
 
 ## Usage
@@ -69,10 +70,16 @@ curl -X POST https://<api-id>.execute-api.localhost.localstack.cloud:4566/prod/c
   }'
 
 # Invoke Lambda directly via LocalStack
-make invoke-ingest
+make invoke
 
-# Scan DynamoDB table
-make scan-dynamo
+# Run all tests
+make test
+
+# Run unit tests only (no LocalStack required)
+pytest tests/unit -v
+
+# Run integration tests (requires LocalStack + deployed stack)
+pytest tests/integration -v
 ```
 
 ## Design Decisions
