@@ -1,0 +1,16 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+        working-directory: claims-instake-pipeline
+      - run: pip install -r requirements-dev.txt
+        working-directory: claims-instake-pipeline
+      - run: pytest tests/unit -v
+        working-directory: claims-instake-pipeline
